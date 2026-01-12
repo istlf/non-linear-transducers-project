@@ -1,0 +1,167 @@
+import numpy as np
+import scipy as sp 
+from scipy.signal.windows import flattop
+import scipy.io.wavfile as wavfile
+
+
+def load_wav(file, normalize=False):
+    """
+    load wav and normalize to -1.0/+1.0 if noramlize=True
+    returns fs, data
+    """
+    fs, data = sp.io.wavfile.read(file)
+    
+    # normalize audio to -1.0 to +1.0
+    if normalize is not False:
+        if np.issubdtype(data.dtype, np.integer):
+            data = data / np.iinfo(data.dtype).max
+
+    return fs, data
+
+
+
+def thd_r(signal, fs, max_harmonic=19):
+    # 1. apply hanning window - this attenuated by 0.5 which we will fix later
+    window = np.hanning(len(signal))
+    signal_windowed = signal * window
+    
+    # 2. perform FFT on the windowed signal
+    yf = np.fft.rfft(signal_windowed)
+    
+    # 3. calculate magnitudes
+    # we normalize by the window instead of the usual N and multiply by 2 for one-sided spectrum
+    magnitudes = np.abs(yf) * 2 / np.sum(window)
+    
+    # 4. find the fundamental in the signal from the magnitudes, ie. not the 1st index (that would be DC) but the 2nd
+    fundamental_idx = np.argmax(magnitudes[1:]) + 1
+    fundamental_mag_peak = magnitudes[fundamental_idx]
+    
+    # 5. calculate frequency resolution
+    freq_res = fs / len(signal)
+    f1_freq = fundamental_idx * freq_res
+    
+    print(f"Detected Fundamental: {f1_freq:.2f} Hz")
+
+    # calculate THD sums
+    sum_squares_harmonics = 0
+    sum_squares_total = fundamental_mag_peak ** 2
+    
+    # store the harmonic data
+    harmonic_data = {} 
+    
+    # fundamental RMS value
+    harmonic_data[1] = fundamental_mag_peak / np.sqrt(2)
+
+    #go through harmonics up until max_harmonic
+    for n in range(2, max_harmonic + 1):
+        
+        expected_idx = n * fundamental_idx
+        search_range = 2 
+        
+        start = max(0, expected_idx - search_range)
+        end = min(len(magnitudes), expected_idx + search_range + 1)
+        
+        # check for valid start (less than magnitudes array)
+        if start < len(magnitudes):
+            harm_mag_peak = np.max(magnitudes[start:end])
+            
+            sq_val = harm_mag_peak ** 2
+            sum_squares_harmonics += sq_val
+            sum_squares_total += sq_val
+            
+            # convert from peak to rms
+            harmonic_data[n] = harm_mag_peak / np.sqrt(2)
+
+    # compute THD_R 
+    numerator = np.sqrt(sum_squares_harmonics)
+    denominator = np.sqrt(sum_squares_total)
+    
+    # check for divide by zero 
+    if denominator == 0:
+        thd_r = 0
+    else:
+        thd_r = numerator / denominator
+
+    return thd_r, harmonic_data
+
+
+
+def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
+    window = np.hanning(len(signal))
+    #window = flattop(len(signal))
+    signal_windowed = signal * window
+    
+    yf = np.fft.rfft(signal_windowed)
+    
+    magnitudes = np.abs(yf) * 2 / np.sum(window)
+    
+    freq_res = fs / len(signal)
+    
+    sum_sq_numerator = 0.0   # sideband sum (n != 0 )
+    sum_sq_denominator = 0.0 # sum of everything (n = -max to +max)
+    print(f"carrier: {f_carrier} Hz, modulator: {f_mod} Hz)")
+    for n in range(-n_max, n_max + 1):
+        # target frequency is f2 + n*f1
+        target_freq = f_carrier + (n * f_mod)
+        
+        # #don't check negative frequencies or above nyquist
+        if target_freq <= 0 or target_freq >= fs / 2:
+            continue
+            
+        # find target index for the fft bins
+        target_idx = int(round(target_freq / freq_res))
+        
+        # search range
+        start = max(0, target_idx - search_window)
+        end = min(len(magnitudes), target_idx + search_window + 1)
+        
+        # find peaks in the range
+        peak_mag = np.max(magnitudes[start:end])
+        
+        # square it
+        sq_val = peak_mag ** 2
+        
+        # and add to denominator sum
+        sum_sq_denominator += sq_val
+        
+        # add to distortion sum, but only if it is not n != 0 
+        if n != 0:
+            sum_sq_numerator += sq_val
+            # print sidebands?
+            if peak_mag > 0.001: # filter out very low signals
+                print(f"n={n}: peak at {target_idx*freq_res:.1f} Hz with amplitude {peak_mag:.4f}")
+        else:
+             print(f"carrer at n=0: peak at {target_idx*freq_res:.1f}Hz with amplitude {peak_mag:.4f}")
+
+    # numerator: sum of sidfebands
+    numerator = np.sqrt(sum_sq_numerator)
+    
+    # denominator: total sum
+    denominator = np.sqrt(sum_sq_denominator)
+    
+    if denominator == 0:
+        return 0.0
+        
+    timd = numerator / denominator
+    return timd
+
+
+
+def generate_timd_file(file, f_carrier=10000, f_mod=500):
+    fs = 48000
+    duration = 1.0
+    t = np.linspace(0, duration, int(fs * duration))
+
+    carrier = 0.8 * np.sin(2 * np.pi * f_carrier * t)
+
+    sb_lower = 0.1 * np.sin(2 * np.pi * (f_carrier - f_mod) * t)
+    sb_upper = 0.1 * np.sin(2 * np.pi * (f_carrier + f_mod) * t)
+    
+    sb_lower_2 = 0.05 * np.sin(2 * np.pi * (f_carrier - 2 * f_mod) * t)
+    sb_upper_2 = 0.05 * np.sin(2 * np.pi * (f_carrier + 2 * f_mod) * t)
+    
+    # sum carrier and sidebands
+    signal = carrier + sb_lower + sb_upper + sb_lower_2 + sb_upper_2
+    
+    sp.io.wavfile.write(file, fs, (signal * 30000).astype(np.int16))
+    return fs, signal
