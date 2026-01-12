@@ -147,7 +147,7 @@ def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
 
 
 
-def generate_timd_file(file, f_carrier=10000, f_mod=500):
+def generate_timd_signal(f_carrier=10000, f_mod=500):
     fs = 48000
     duration = 1.0
     t = np.linspace(0, duration, int(fs * duration))
@@ -163,5 +163,4 @@ def generate_timd_file(file, f_carrier=10000, f_mod=500):
     # sum carrier and sidebands
     signal = carrier + sb_lower + sb_upper + sb_lower_2 + sb_upper_2
     
-    sp.io.wavfile.write(file, fs, (signal * 30000).astype(np.int16))
     return fs, signal
