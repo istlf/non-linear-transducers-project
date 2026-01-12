@@ -164,3 +164,40 @@ def generate_timd_signal(f_carrier=10000, f_mod=500):
     signal = carrier + sb_lower + sb_upper + sb_lower_2 + sb_upper_2
     
     return fs, signal
+
+
+def calculate_min_fs(F):
+    eigenvalues, _ = np.linalg.eig(F)
+
+    min_required_fs = 0.0
+
+    # lam = lambda, ie. go through all eigenvalues for F
+    for lam in eigenvalues:
+        real_part = np.real(lam)
+        # min_fs >= -lambda^2/(2*real_part)
+        mag_squared = np.abs(lam)**2
+        req_fs = mag_squared / (-2 * real_part)
+        
+        # take max value for minimum fs
+        if req_fs > min_required_fs:
+            min_required_fs = req_fs
+    
+    return min_required_fs
+
+def check_stability(F, fs):
+    """
+    check if (I + F/fs) = (Ihas eigenvalues all <= 1
+    """
+    dim = F.shape[0]
+    I = np.eye(dim)
+    T_s = 1/fs
+    
+    # Matrix: I + Ts*F
+    discretized_matrix = I + (F * T_s)
+    
+    eigs, _ = np.linalg.eig(discretized_matrix)
+    max_abs = np.max(np.abs(eigs))
+    
+    is_stable = max_abs <= 1.0
+    print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
+    return is_stable
