@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sp 
 from scipy.signal.windows import flattop
 import scipy.io.wavfile as wavfile
+import matplotlib.pyplot as plt
 
 
 def load_wav(file, normalize=False):
@@ -17,8 +18,6 @@ def load_wav(file, normalize=False):
             data = data / np.iinfo(data.dtype).max
 
     return fs, data
-
-
 
 def thd_r(signal, fs, max_harmonic=19):
     # 1. apply hanning window - this attenuated by 0.5 which we will fix later
@@ -84,8 +83,6 @@ def thd_r(signal, fs, max_harmonic=19):
 
     return thd_r, harmonic_data
 
-
-
 def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
     # window = np.hanning(len(signal)) # Maybe use windowing 
     # window = np.blackman(len(signal))
@@ -149,8 +146,6 @@ def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
     timd = numerator / denominator
     return timd
 
-
-
 def generate_timd_signal(f_carrier=10000, f_mod=500):
     fs = 48000 # 2*96000
     duration = 1
@@ -187,7 +182,6 @@ def generate_pink_noise(N, fs, fmin=1.0, fmax=None):
     x = np.fft.irfft(X, n=N)
     return x / np.std(x)
 
-
 def calculate_min_fs(F):
     eigenvalues, _ = np.linalg.eig(F)
 
@@ -223,4 +217,85 @@ def check_stability(F, fs):
     is_stable = max_abs <= 1.0
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
+
+def init_latex():
+    plt.rcParams.update({
+        "text.usetex": True,
+        "font.size": 14,
+        "axes.labelsize": 14,
+        "axes.titlesize": 16
+    })
+
+def plot_mag(fs, resps, legends, title, xlim=[20,20e3], ylim=None, save=None, ylabel="Magnitude $\\left| H \\right|$ / dB re 1 V/V"):
+    init_latex()
+    plt.figure(figsize=(14, 5))
+    for f, resp, legend in zip(fs, resps, legends):
+        plt.semilogx(f, 20*np.log10(np.abs(resp)), label=legend)
+    plt.xlabel("Frequency \\textit{f} / Hz")
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.grid(True, which="both", ls="--", alpha=0.7)
+    plt.legend()
+    plt.xlim(xlim)
+    if ylim is not None:
+        plt.ylim(ylim)
+    if save is not None:
+        plt.savefig(save, bbox_inches="tight")
+    plt.show()
+
+def make_spectrum(x, fs, scaling=False, oneside=False):
+    """
+       freq, Y, YDB = engutil.make_spectrum(x, fs, scaling=False, oneside=False)
+        Calculates the frequency spectrum of a signal with correct scaling.
+
+        If 'oneside' and 'scaling' are both True, it computes a one-sided 
+        amplitude spectrum. Otherwise, it computes a standard FFT.
+
+        Args:
+            x (array-like): Input signal array.
+            fs (int or float): Sampling frequency.
+            scaling (bool): If True, applies amplitude scaling.
+            oneside (bool): If True, returns a one-sided spectrum.
+
+        Returns:
+            tuple: A tuple containing (freq, Y, YDB)
+                - freq (np.ndarray): Frequency vector.
+                - Y (np.ndarray): Complex FFT result (scaled if requested).
+                - YDB (np.ndarray): FFT result in decibels.
+
+       
+    """
+    x = np.asarray(x)
+    N = len(x)
+
+    if oneside:
+        # Use rfft for efficiency with real signals, as it computes
+        # only the positive frequency components.
+        Y = np.fft.rfft(x)
+        freq = np.fft.rfftfreq(N, d=1 / fs)
+
+        if scaling:
+         
+            Y = Y / N
+            
+            Y[1:] *= 2
+
+            if N % 2 == 0:
+               
+                Y[-1] /= 2
+    else:
+        # For a standard two-sided spectrum
+        Y = np.fft.fft(x)
+        freq = np.fft.fftfreq(N, d=1 / fs)
+        if scaling:
+            # For a two-sided spectrum, the standard amplitude scaling is 1/N.
+            Y = Y / N
+
+    # Calculate decibels for the final spectrum.
+    # A small constant is added to avoid an error from log10(0).
+    YDB = 20 * np.log10(np.abs(Y) + 1e-9)
+
+    return freq, Y, YDB
+
+
 
