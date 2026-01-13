@@ -206,3 +206,4 @@ def check_stability(F, fs):
     is_stable = max_abs <= 1.0
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
+
