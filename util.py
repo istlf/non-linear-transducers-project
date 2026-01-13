@@ -87,16 +87,20 @@ def thd_r(signal, fs, max_harmonic=19):
 
 
 def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
-    window = np.hanning(len(signal))
-    #window = flattop(len(signal))
+    # window = np.hanning(len(signal)) # Maybe use windowing 
+    # window = np.blackman(len(signal))
+    # window = np.kaiser(len(signal), 0)
+    window = flattop(len(signal))
     signal_windowed = signal * window
     
     yf = np.fft.rfft(signal_windowed)
-    
-    magnitudes = np.abs(yf) * 2 / np.sum(window)
+    # yf = np.fft.rfft(signal)
+    magnitudes = np.abs(yf) * 2 / np.sum(window) # len(signal) # np.sum(window)
     
     freq_res = fs / len(signal)
     
+    print(f"freq_res: {freq_res}")
+
     sum_sq_numerator = 0.0   # sideband sum (n != 0 )
     sum_sq_denominator = 0.0 # sum of everything (n = -max to +max)
     print(f"carrier: {f_carrier} Hz, modulator: {f_mod} Hz)")
@@ -148,9 +152,10 @@ def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
 
 
 def generate_timd_signal(f_carrier=10000, f_mod=500):
-    fs = 48000
-    duration = 1.0
+    fs = 48000 # 2*96000
+    duration = 1
     t = np.linspace(0, duration, int(fs * duration))
+    print(len(t))
 
     carrier = 0.8 * np.sin(2 * np.pi * f_carrier * t)
 
