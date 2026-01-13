@@ -19,6 +19,10 @@ def load_wav(file, normalize=False):
 
     return fs, data
 
+def save_wav(path_n_name, signal, fs):
+    signal_int16 = np.int16(signal / np.max(np.abs(signal)) * 32767)
+    wavfile.write(path_n_name, fs, signal_int16)   
+
 def thd_r(signal, fs, max_harmonic=19):
     # 1. apply hanning window - this attenuated by 0.5 which we will fix later
     window = np.hanning(len(signal))
