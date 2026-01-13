@@ -187,7 +187,7 @@ def generate_pink_noise(N, fs, fmin=1.0, fmax=None):
     x = np.fft.irfft(X, n=N)
     return x / np.std(x)
 
-    
+
 def calculate_min_fs(F):
     eigenvalues, _ = np.linalg.eig(F)
 
