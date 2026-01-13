@@ -170,7 +170,24 @@ def generate_timd_signal(f_carrier=10000, f_mod=500):
     
     return fs, signal
 
+def generate_pink_noise(N, fs, fmin=1.0, fmax=None):
+    if fmax is None:
+        fmax = fs / 2
 
+    X = np.fft.rfft(np.random.randn(N))
+    freqs = np.fft.rfftfreq(N, d=1/fs)
+
+    # avoid DC + apply band limits
+    freqs[0] = fmin
+    mask = (freqs >= fmin) & (freqs <= fmax)
+
+    X[mask] /= np.sqrt(freqs[mask])
+    X[~mask] = 0.0
+
+    x = np.fft.irfft(X, n=N)
+    return x / np.std(x)
+
+    
 def calculate_min_fs(F):
     eigenvalues, _ = np.lin-.-.
     
