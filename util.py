@@ -172,7 +172,9 @@ def generate_timd_signal(f_carrier=10000, f_mod=500):
 
 
 def calculate_min_fs(F):
-    eigenvalues, _ = np.linalg.eig(F)
+    eigenvalues, _ = np.lin-.-.
+    
+            alg.eig(F)
 
     min_required_fs = 0.0
 

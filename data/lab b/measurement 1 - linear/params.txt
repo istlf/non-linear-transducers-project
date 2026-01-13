@@ -1,0 +1,80 @@
+Electrical Parameters			
+Re	5.66	Ohm	electrical voice coil resistance at DC
+Le	0.397	mH	frequency independent part of voice coil inductance
+L2	0.576	mH	para-inductance of voice coil
+R2	3.19	Ohm	electrical resistance due to eddy current losses
+Cmes	316.02	�F	electrical capacitance representing moving mass
+Lces	34.33	mH	electrical inductance representing driver compliance
+Res	28.54	Ohm	resistance due to mechanical losses
+fs	48.3	Hz	driver resonance frequency 
+			
+Mechanical Parameters			
+(using laser)			
+Mms	13.168	g	mechanical mass of driver diaphragm assembly including air load and voice coil
+Mmd (Sd)	Sd missing	g	mechanical mass of voice coil and diaphragm without air load  
+Rms	1.460	kg/s	mechanical resistance of  total-driver losses
+Cms	0.824	mm/N	mechanical compliance of driver suspension
+Kms	1.21	N/mm	mechanical stiffness of driver suspension
+Bl	6.455	N/A	force factor (Bl product)
+Lambda s	0.043		suspension creep factor
+			
+Loss factors			
+Qtp	0.454		total Q-factor considering all losses
+Qms	2.738		mechanical Q-factor of driver in free air considering Rms only
+Qes	0.543		electrical Q-factor of driver in free air considering Re only
+Qts	0.453		total Q-factor considering Re and Rms only
+			
+Other Parameters			
+Vas	Sd missing	l	equivalent air volume of suspension 
+n0	Sd missing	%	reference efficiency (2 pi-radiation using Re) 
+Lm	Sd missing	dB	characteristic sound pressure level (SPL at 1m for 1W @ Re)
+Lnom	Sd missing	dB	nominal sensitivity (SPL at 1m for 1W @ Zn)
+			
+rmse Z	3.29	%	root-mean-square fitting error of driver impedance Z(f)
+rmse Hx	2.78	%	root-mean-square fitting error of transfer function Hx (f)
+			
+Series resistor	0.00	Ohm	resistance of series resistor
+Sd	missing	cm�	diaphragm area
+
+
+
+
+
+
+Voltage			
+U pp	1.01	V	peak to peak value of voltage at terminals
+U ac	0.14	V rms	AC part of voltage signal
+U dc	-0.00	V	
+U head	54.3	dB	digital headroom of voltage signal
+U SNR+D	39.4	dB	ratio of signal to noise+distortion in voltage signal 
+fu noise	139.2	Hz	frequency of noise+distortion maximum in voltage signal
+gain	7.44	 	Amplifier gain measured
+			
+Current			
+I pp	0.12	A	peak to peak value of current at terminals
+I ac	0.02	A rms	AC part of current signal
+I dc	-0.00	A	
+I head	59.4	dB	digital headroom of current signal
+I SNR+D	31.2	dB	ratio of signal to noise+distortion in current signal 
+fi noise	61.5	Hz	frequency of noise+distortion maximum in current signal
+			
+Displacement			
+X pp	0.26	mm	peak to peak value of displacement signal
+X ac	0.05	mm rms	AC part of displacement signal
+X dc	0.20	mm	
+X head	50.9	dB	digital headroom of displacement signal
+X SNR+D	26.8	dB	ratio of signal to noise+distortion in displacement signal 
+fx cutoff	313.5	Hz	frequency of highest valid line in displacement signal
+			
+SPL			
+p pp		mV	peak to peak value of microphone signal
+p ac		mV rms	AC part of microphone signal
+p head		dB	digital headroom of microphone signal
+p sum level		dB	sum level of microphone signal
+p mean level		dB	mean level of microphone signal
+			
+Measurement			
+f sample	6000	Hz	sample frequency
+N stim	4096	samples	stimulus length
+cal x laser	0.108731		Laser calibration factor
+

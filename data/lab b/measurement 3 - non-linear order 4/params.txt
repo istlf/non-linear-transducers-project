@@ -1,0 +1,78 @@
+Note:	 	 	 	 	for accurate small signal parameters, use LPM module
+Delta Tv = Tv-Ta	15	0	0	K	increase of voice coil temperature during the measurement 
+Xprot	2.8	2.8	0.3	mm	maximal voice coil excursion (limited by protection system)
+					
+Re (Tv)	5.97	5.66	5.66	Ohm	(imported) voice coil resistance considering increase of voice coil temperature Tv
+Le (X=0)	0.47	0.47	0.45	mH	voice coil inductance at the rest position of the voice coil
+L2 (X=0)	0.46	0.46	0.49	mH	para-inductance at the rest position due to the effect of eddy current
+R2 (X=0)	2.24	2.24	2.10	Ohm	resistance at the rest position due to eddy currents
+Cmes (X=0)	331	331	336	�F	electrical capacitance representing moving mass
+Lces (X=0)	54.36	54.36	34.75	mH	electrical inductance at the rest position representing driver compliance
+Res (X=0)	24.86	24.86	19.03	Ohm	resistance at the rest position due to mechanical losses
+					
+Qms (X=0, Tv)	1.94	1.94	1.87	 	mechanical Q-factor considering Rms only
+Qes (Tv)	0.44	0.42	0.52	 	electrical Q-factor considering Re (Tv) only
+Qts (X=0, Tv)	0.36	0.35	0.41	 	total Q-factor considering Re (Tv) and Rms only
+fs	37.5	37.5	46.6	Hz	driver resonance frequency
+					
+Mms	13.168	13.168	13.168	g	(imported) mechanical mass of driver diaphragm assembly including voice-coil and air load
+Rms (X=0)	1.601	1.601	2.059	kg/s	mechanical resistance of  total-driver losses
+Cms (X=0)	1.37	1.37	0.89	mm/N	mechanical compliance of driver suspension at the rest position
+Kms (X=0)	0.73	0.73	1.13	N/mm	mechanical stiffness of driver suspension at the rest position
+Bl (X=0)	6.46	6.46	6.46	N/A	(imported) force factor at the rest position (Bl product)
+Sd	n/a	 	 	 	IMPORT Sd at Driver page to display Vas, N0, and Lm
+					
+
+
+
+
+
+
+Start Date	 2026-01-09 		
+Start Time	10:53:08		
+Serial number	227		
+Mode	Nonlinear Mode 5(7)     		
+Record	485/485		
+Laser	signal reliable		
+t	00:13:03	h:min:s	measurement time
+Time remaining	00:00:04	h:min:s	recalculated at thermal mode(a)
+			
+Ei (t)	2.7	%	error current measurement
+Ex (t)	0.9	%	error laser measurement
+Eu (t)	5.0	%	error amplifier check
+			
+Delta Tv (Delta Tlim)	14.7 (60.0)	K	increase of voice coil temperature (limit)
+Blmin (Bllim)	95.1 (60.0)	%	minimal force factor ratio (limit)
+Cmin (Clim)	50.4 (50.0)	%	minimal compliance ratio (limit)
+P (Plim)	1.0616 (50.000)	W	real electrical input power (limit)
+Lmin	89.1	%	minimal inductance ratio
+Pn		W	IMPORT Zn at Driver page to see nominal electrical input power
+P Re	0.918440	W	Power heating voice coil
+P Mech	0.126600	W	....
+Irms	0.392	A	rms value of the electrical input current
+Urms	3.087	V	rms value of the electrical voltage at the transducer terminals
+Ipeak	1.247	A	peak value of the electrical input current
+Upeak	10.238	V	peak value of the electrical voltage at the transducer terminals
+Glarge (Gmax)	18.8 (26.0)	dB	gain of the excitation amplitude increased in the large signal domain (maximum)
+			
+Mech. system		abs.	import used to identify mechanical system in absolute quantities
+			
+Xdc	0.16	mm	dc component of voice coil excursion measured in the last update intervall
+Xpeak	3.21	mm	positive peak value of voice coil excursion measured in the last update intervall
+Xbottom	-2.73	mm	negative peak value (bottom) of voice coil excursion measured in the last update intervall
+Xp+	2.6	mm	upper limit of displacement range (99% probability)
+Xp-	-2.3	mm	lower limit of displacement range (99% probability)
+Xprot	2.8	mm	maximal voice coil excursion allowed by protection system
+v rms	0.21	m/s	voice coil velocity
+			
+Distortion	 	 	 
+			
+Db	2.9	%	distortion factors representing contribution of nonlinear force factor
+Dl	4.6	%	distortion factor representing contribution of nonlinear inductance
+Dc	7.3	%	distortion factor representing contribution of nonlinear compliance
+D l(i)	0.4	%	distortion factor representing contribution of L(I) nonlinearity
+			
+Thermal	 	 	 
+			
+R th total	16.00	K/W	Delta Tv / P Re
+
