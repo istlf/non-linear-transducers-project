@@ -225,7 +225,7 @@ def check_stability(F, fs):
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
 
-def welch(u, X, fs):
+def welchie(u, X, fs):
     # print(data.keys())
     # fs = data['sample_rate'][0][0]
     i = X[0]
@@ -239,6 +239,9 @@ def welch(u, X, fs):
     numsecs = len(u)/fs
     numavgs = 15 # is really 2*numavgs
 
+    print(f"len samples: {len(u)}")
+    print(f"nperseg = {len(u)/numavgs}")
+    print(f"len seconds: {len(u)/fs}")
     #print(fs)
     # 96kHz 
     nperseg = int(len(u)/numavgs) # 96000 #2**16
@@ -448,3 +451,41 @@ def vel_2_spl(vel, r, f):
     p_rms = rho*c*k*U/(4*np.pi*1)
     p_rms_dB = 20*np.log10(p_rms/(20e-6))
     return p_rms_dB
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import loadmat, savemat
+from scipy.signal import welch, stft
+
+def magnitude_spectrum(x, sr, window_length, window="rectangular"):
+  """Compute the averaged magnitude spectrum over overlapping segments.
+
+  Args:
+    x: the signal
+    sr: sample rate
+    window_length: the size of the window and the FFT
+    window: which window type to apply
+  Returns:
+    f: array of frequencies
+    A: the magnitude spectrum
+  
+  usage: f, S = magnitude_spectrum(signal, sr, window="rectangular", window_length=96000)    
+
+  """
+  # Overlapping segments, window and Fourier transform. The default option
+  # `scale="spectrum"` takes care of proper magnitude normalization.
+  f, _, S = stft(x, sr, window=window, nperseg=window_length, boundary=None)
+  # remove last window, which might not contain full period of the excitation
+  S = S[:, :-1]
+  # compute magnitude
+  S = np.abs(S)
+  # real spectrum only gives half of the amplitude
+  S *= 2
+  # average over the segments
+  S = S.mean(axis=-1)
+
+  # Alternative code that gives exactly the same output as above:
+  # f, Pxx = welch(x, sr, window=window, nperseg=window_length,
+  #                scaling='spectrum', return_onesided=True)
+  # S = np.sqrt(Pxx * 2)
+  return f, S
