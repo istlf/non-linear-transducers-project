@@ -19,6 +19,10 @@ def load_wav(file, normalize=False):
 
     return fs, data
 
+def save_wav(path_n_name, signal, fs):
+    signal_int16 = np.int16(signal / np.max(np.abs(signal)) * 32767)
+    wavfile.write(path_n_name, fs, signal_int16)   
+
 def thd_r(signal, fs, max_harmonic=19):
     # 1. apply hanning window - this attenuated by 0.5 which we will fix later
     window = np.hanning(len(signal))
@@ -413,45 +417,5 @@ def make_spectrum(x, fs, scaling=False, oneside=False):
     return freq, Y, YDB
 
 
-
-
-
-def Welch(file):
-
-    print(data.keys())
-    fs = data['sample_rate'][0][0]
-
-    u = np.squeeze(data['voltage'])
-    d = np.squeeze(data['displacement'])
-    i = np.squeeze(data['current'])
-    v = np.squeeze(data['velocity'])
-    print(f"len: {len(u)}")
-    print(f"nperseg = {len(u)/25}")
-    print(f"len: {len(u)/fs}")
-    numsamples = len(u)
-    numsecs = len(u)/fs
-    numavgs = 15 # is really 2*numavgs
-
-    #print(fs)
-    # 96kHz 
-    nperseg = len(u)/numavgs # 96000 #2**16
-    noverlap = nperseg//2 # 2**8 #// 2
-    window = 'hann'
-    #nfft = 2**17
-    print(f"Num avg: {2*numsamples/nperseg}")
-    print(f"freq res: {fs/nperseg}")
-    
-    f, S_uu = scipy.signal.welch(u, fs, window, nperseg, noverlap) # , nfft=nfft)
-    f, S_iu = scipy.signal.csd(u, i, fs, window, nperseg, noverlap)
-    f, S_du = scipy.signal.csd(u, d, fs, window, nperseg, noverlap)
-    f, S_vu = scipy.signal.csd(u, v, fs, window, nperseg, noverlap)
-
-    mu = 0# 1e-7
-    
-    G_iu = S_iu/(S_uu + mu)
-    G_du = S_du/(S_uu + mu)
-    G_vu = S_vu/(S_uu + mu)
-
-    return G_iu, G_du, G_vu, f
 
 
