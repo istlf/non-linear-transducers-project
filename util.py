@@ -3,6 +3,9 @@ import scipy as sp
 from scipy.signal.windows import flattop
 import scipy.io.wavfile as wavfile
 import matplotlib.pyplot as plt
+import scipy as sp
+import numpy as np 
+import engutil
 
 
 def load_wav(file, normalize=False):
@@ -258,11 +261,6 @@ def welch(u, X, fs):
 
     return G_iu, G_du, G_vu, f
 
-
-import scipy as sp
-import numpy as np 
-import engutil
-
 def solve_forward_euler(F, G, u_signal, x0, fs):
     """
     Simulates a state-space system using Forward Euler.
@@ -309,7 +307,6 @@ def solve_forward_euler(F, G, u_signal, x0, fs):
         
     return x_history
 
-
 def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
     Ts = 1/fs
     num_states = len(x0)
@@ -333,9 +330,6 @@ def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
         x_curr = x_next
         
     return x_history
-
-
-
 
 def init_latex():
     plt.rcParams.update({
@@ -416,6 +410,40 @@ def make_spectrum(x, fs, scaling=False, oneside=False):
 
     return freq, Y, YDB
 
+def midpoint_forward_euler(F, G, u_signal, x0, fs):
+    Ts = 1 / fs
+    num_steps = len(u_signal)
+    
+    # 1. Initialize History Arrays
+    # We need to store the state at every time step to plot it later.
+    # Shape: (Number of Time Steps, Number of States)
+    num_states = len(x0)
+    x_history = np.zeros((num_steps, num_states))
+    
+    # Set current state to initial state
+    x_curr = x0.copy()
 
+    for n in range(num_steps):
+        x_history[n] = x_curr
+        u_curr = u_signal[n]
+
+        # Calculate slope at start point to find midpoint
+        dx1 = (F @ x_curr) + (G * u_curr)
+        x_mid = x_curr + 0.5 * Ts * dx1
+
+        # Signal at midpoint
+        # Right now it uses signal at starting point. Not the best solution u_mid = 0.5 * (u_signal[n] + u_signal[n+1]) solution imporves accuracy but i get out of bounds for the last sample...
+        
+        # u_mid = 0.5 * (u_signal[n] + u_signal[n+1])
+        u_mid = u_curr
+        
+        # Slope at midpoint
+        dx2 = (F @ x_mid) + (G * u_mid)
+
+        x_next = x_curr + Ts * dx2
+
+        x_curr = x_next
+
+    return x_history
 
 
