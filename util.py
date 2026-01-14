@@ -225,13 +225,14 @@ def welch(u, X, fs):
     d = X[1]
     v = X[2]
 
-    print(f"len: {len(u)}")
-    print(f"nperseg = {len(u)/25}")
-    print(f"len: {len(u)/fs}")
+    
     numsamples = int(len(u))
     numsecs = len(u)/fs
     numavgs = 15 # is really 2*numavgs
 
+    print(f"len samples: {len(u)}")
+    print(f"nperseg = {len(u)/numavgs}")
+    print(f"len seconds: {len(u)/fs}")
     #print(fs)
     # 96kHz 
     nperseg = int(len(u)/numavgs) # 96000 #2**16
