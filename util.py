@@ -1,5 +1,5 @@
 import numpy as np
-import scipy as sp 
+import scipy as sp
 from scipy.signal.windows import flattop
 import scipy.io.wavfile as wavfile
 import matplotlib.pyplot as plt
@@ -218,6 +218,121 @@ def check_stability(F, fs):
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
 
+def welch(u, X, fs):
+    # print(data.keys())
+    # fs = data['sample_rate'][0][0]
+    i = X[0]
+    d = X[1]
+    v = X[2]
+
+    print(f"len: {len(u)}")
+    print(f"nperseg = {len(u)/25}")
+    print(f"len: {len(u)/fs}")
+    numsamples = int(len(u))
+    numsecs = len(u)/fs
+    numavgs = 15 # is really 2*numavgs
+
+    #print(fs)
+    # 96kHz 
+    nperseg = int(len(u)/numavgs) # 96000 #2**16
+    noverlap = nperseg//2 # 2**8 #// 2
+    window = 'hann'
+    #nfft = 2**17
+    print(f"Num avg: {2*numsamples/nperseg}")
+    print(f"freq res: {fs/nperseg}")
+    
+    f, S_uu = sp.signal.welch(u, fs, window, nperseg, noverlap) # , nfft=nfft)
+    f, S_iu = sp.signal.csd(u, i, fs, window, nperseg, noverlap)
+    f, S_du = sp.signal.csd(u, d, fs, window, nperseg, noverlap)
+    f, S_vu = sp.signal.csd(u, v, fs, window, nperseg, noverlap)
+
+    mu =  0# 1e-7# 1e-7
+    
+    G_iu = S_iu/(S_uu + mu)
+    G_du = S_du/(S_uu + mu)
+    G_vu = S_vu/(S_uu + mu)
+
+    return G_iu, G_du, G_vu, f
+
+
+import scipy as sp
+import numpy as np 
+import engutil
+
+def solve_forward_euler(F, G, u_signal, x0, fs):
+    """
+    Simulates a state-space system using Forward Euler.
+    
+    Parameters:
+    F, G: System matrices
+    u_signal: Array of inputs over time
+    x0: Initial state vector
+    fs: Sampling frequency
+    """
+    Ts = 1 / fs
+    num_steps = len(u_signal)
+    
+    # 1. Initialize History Arrays
+    # We need to store the state at every time step to plot it later.
+    # Shape: (Number of Time Steps, Number of States)
+    num_states = len(x0)
+    x_history = np.zeros((num_steps, num_states))
+    
+    # Set current state to initial state
+    x_curr = x0.copy()
+    
+    print(f"Simulating {num_steps} steps with Ts={Ts:.10f}s...")
+
+    # 2. The Simulation Loop
+    for n in range(num_steps):
+        # Store current state
+        x_history[n] = x_curr
+        
+        # Get current input (handle scalar or vector inputs)
+        u_curr = u_signal[n]
+        
+        # --- THE FORMULA FROM YOUR IMAGE ---
+        # Calculate the derivative (slope)
+        # dx/dt = F*x + G*u
+        dx = (F @ x_curr) + (G * u_curr)
+        
+        # Euler Step: New = Old + (Slope * StepSize)
+        x_next = x_curr + (dx * Ts)
+        # -----------------------------------
+        
+        # Update for next iteration
+        x_curr = x_next
+        
+    return x_history
+
+
+def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
+    Ts = 1/fs
+    num_states = len(x0)
+    I = np.eye(num_states)
+    
+    # Pre-compute Discrete Matrices
+    Phi = I + (F * Ts)
+    Gamma = G * Ts
+    
+    # Initialize
+    x_history = np.zeros((len(u_signal), num_states))
+    x_curr = x0.copy()
+    
+    # Faster Loop
+    for n in range(len(u_signal)):
+        x_history[n] = x_curr
+        
+        # Single matrix multiply + add
+        x_next = (Phi @ x_curr) + (Gamma * u_signal[n])
+        
+        x_curr = x_next
+        
+    return x_history
+
+
+
+
 def init_latex():
     plt.rcParams.update({
         "text.usetex": True,
@@ -298,5 +413,45 @@ def make_spectrum(x, fs, scaling=False, oneside=False):
     return freq, Y, YDB
 
 
+
+
+
+def Welch(file):
+
+    print(data.keys())
+    fs = data['sample_rate'][0][0]
+
+    u = np.squeeze(data['voltage'])
+    d = np.squeeze(data['displacement'])
+    i = np.squeeze(data['current'])
+    v = np.squeeze(data['velocity'])
+    print(f"len: {len(u)}")
+    print(f"nperseg = {len(u)/25}")
+    print(f"len: {len(u)/fs}")
+    numsamples = len(u)
+    numsecs = len(u)/fs
+    numavgs = 15 # is really 2*numavgs
+
+    #print(fs)
+    # 96kHz 
+    nperseg = len(u)/numavgs # 96000 #2**16
+    noverlap = nperseg//2 # 2**8 #// 2
+    window = 'hann'
+    #nfft = 2**17
+    print(f"Num avg: {2*numsamples/nperseg}")
+    print(f"freq res: {fs/nperseg}")
+    
+    f, S_uu = scipy.signal.welch(u, fs, window, nperseg, noverlap) # , nfft=nfft)
+    f, S_iu = scipy.signal.csd(u, i, fs, window, nperseg, noverlap)
+    f, S_du = scipy.signal.csd(u, d, fs, window, nperseg, noverlap)
+    f, S_vu = scipy.signal.csd(u, v, fs, window, nperseg, noverlap)
+
+    mu = 0# 1e-7
+    
+    G_iu = S_iu/(S_uu + mu)
+    G_du = S_du/(S_uu + mu)
+    G_vu = S_vu/(S_uu + mu)
+
+    return G_iu, G_du, G_vu, f
 
 
