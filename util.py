@@ -3,6 +3,9 @@ import scipy as sp
 from scipy.signal.windows import flattop
 import scipy.io.wavfile as wavfile
 import matplotlib.pyplot as plt
+import scipy as sp
+import numpy as np 
+import engutil
 
 
 def load_wav(file, normalize=False):
@@ -18,6 +21,10 @@ def load_wav(file, normalize=False):
             data = data / np.iinfo(data.dtype).max
 
     return fs, data
+
+def save_wav(path_n_name, signal, fs):
+    signal_int16 = np.int16(signal / np.max(np.abs(signal)) * 32767)
+    wavfile.write(path_n_name, fs, signal_int16)   
 
 def thd_r(signal, fs, max_harmonic=19):
     # 1. apply hanning window - this attenuated by 0.5 which we will fix later
@@ -255,11 +262,6 @@ def welch(u, X, fs):
 
     return G_iu, G_du, G_vu, f
 
-
-import scipy as sp
-import numpy as np 
-import engutil
-
 def solve_forward_euler(F, G, u_signal, x0, fs):
     """
     Simulates a state-space system using Forward Euler.
@@ -306,7 +308,6 @@ def solve_forward_euler(F, G, u_signal, x0, fs):
         
     return x_history
 
-
 def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
     Ts = 1/fs
     num_states = len(x0)
@@ -330,9 +331,6 @@ def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
         x_curr = x_next
         
     return x_history
-
-
-
 
 def init_latex():
     plt.rcParams.update({
@@ -413,46 +411,40 @@ def make_spectrum(x, fs, scaling=False, oneside=False):
 
     return freq, Y, YDB
 
-
-
-
-
-def Welch(file):
-
-    print(data.keys())
-    fs = data['sample_rate'][0][0]
-
-    u = np.squeeze(data['voltage'])
-    d = np.squeeze(data['displacement'])
-    i = np.squeeze(data['current'])
-    v = np.squeeze(data['velocity'])
-    print(f"len: {len(u)}")
-    print(f"nperseg = {len(u)/25}")
-    print(f"len: {len(u)/fs}")
-    numsamples = len(u)
-    numsecs = len(u)/fs
-    numavgs = 15 # is really 2*numavgs
-
-    #print(fs)
-    # 96kHz 
-    nperseg = len(u)/numavgs # 96000 #2**16
-    noverlap = nperseg//2 # 2**8 #// 2
-    window = 'hann'
-    #nfft = 2**17
-    print(f"Num avg: {2*numsamples/nperseg}")
-    print(f"freq res: {fs/nperseg}")
+def midpoint_forward_euler(F, G, u_signal, x0, fs):
+    Ts = 1 / fs
+    num_steps = len(u_signal)
     
-    f, S_uu = scipy.signal.welch(u, fs, window, nperseg, noverlap) # , nfft=nfft)
-    f, S_iu = scipy.signal.csd(u, i, fs, window, nperseg, noverlap)
-    f, S_du = scipy.signal.csd(u, d, fs, window, nperseg, noverlap)
-    f, S_vu = scipy.signal.csd(u, v, fs, window, nperseg, noverlap)
-
-    mu = 0# 1e-7
+    # 1. Initialize History Arrays
+    # We need to store the state at every time step to plot it later.
+    # Shape: (Number of Time Steps, Number of States)
+    num_states = len(x0)
+    x_history = np.zeros((num_steps, num_states))
     
-    G_iu = S_iu/(S_uu + mu)
-    G_du = S_du/(S_uu + mu)
-    G_vu = S_vu/(S_uu + mu)
+    # Set current state to initial state
+    x_curr = x0.copy()
 
-    return G_iu, G_du, G_vu, f
+    for n in range(num_steps):
+        x_history[n] = x_curr
+        u_curr = u_signal[n]
+
+        # Calculate slope at start point to find midpoint
+        dx1 = (F @ x_curr) + (G * u_curr)
+        x_mid = x_curr + 0.5 * Ts * dx1
+
+        # Signal at midpoint
+        # Right now it uses signal at starting point. Not the best solution u_mid = 0.5 * (u_signal[n] + u_signal[n+1]) solution imporves accuracy but i get out of bounds for the last sample...
+        
+        # u_mid = 0.5 * (u_signal[n] + u_signal[n+1])
+        u_mid = u_curr
+        
+        # Slope at midpoint
+        dx2 = (F @ x_mid) + (G * u_mid)
+
+        x_next = x_curr + Ts * dx2
+
+        x_curr = x_next
+
+    return x_history
 
 
