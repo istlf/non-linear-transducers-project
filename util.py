@@ -103,11 +103,11 @@ def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
     
     freq_res = fs / len(signal)
     
-    print(f"freq_res: {freq_res}")
+    #print(f"freq_res: {freq_res}")
 
     sum_sq_numerator = 0.0   # sideband sum (n != 0 )
     sum_sq_denominator = 0.0 # sum of everything (n = -max to +max)
-    print(f"carrier: {f_carrier} Hz, modulator: {f_mod} Hz)")
+    #print(f"carrier: {f_carrier} Hz, modulator: {f_mod} Hz)")
     for n in range(-n_max, n_max + 1):
         # target frequency is f2 + n*f1
         target_freq = f_carrier + (n * f_mod)
@@ -232,7 +232,9 @@ def welchie(u, X, fs):
     d = X[1]
     v = X[2]
 
-    
+    # print(f"len: {len(u)}")
+    # print(f"nperseg = {len(u)/25}")
+    # print(f"len: {len(u)/fs}")
     numsamples = int(len(u))
     numsecs = len(u)/fs
     numavgs = 15 # is really 2*numavgs
@@ -246,8 +248,9 @@ def welchie(u, X, fs):
     noverlap = nperseg//2 # 2**8 #// 2
     window = 'hann'
     #nfft = 2**17
-    print(f"Num avg: {2*numsamples/nperseg}")
-    print(f"freq res: {fs/nperseg}")
+
+    # print(f"Num avg: {2*numsamples/nperseg}")
+    # print(f"freq res: {fs/nperseg}")
     
     f, S_uu = sp.signal.welch(u, fs, window, nperseg, noverlap) # , nfft=nfft)
     f, S_iu = sp.signal.csd(u, i, fs, window, nperseg, noverlap)
@@ -284,7 +287,7 @@ def solve_forward_euler(F, G, u_signal, x0, fs):
     # Set current state to initial state
     x_curr = x0.copy()
     
-    print(f"Simulating {num_steps} steps with Ts={Ts:.10f}s...")
+    #print(f"Simulating {num_steps} steps with Ts={Ts:.10f}s...")
 
     # 2. The Simulation Loop
     for n in range(num_steps):
@@ -357,60 +360,6 @@ def plot_mag(fs, resps, legends, title, xlim=[20,20e3], ylim=None, save=None, yl
         plt.savefig(save, bbox_inches="tight")
     plt.show()
 
-def make_spectrum(x, fs, scaling=False, oneside=False):
-    """
-       freq, Y, YDB = engutil.make_spectrum(x, fs, scaling=False, oneside=False)
-        Calculates the frequency spectrum of a signal with correct scaling.
-
-        If 'oneside' and 'scaling' are both True, it computes a one-sided 
-        amplitude spectrum. Otherwise, it computes a standard FFT.
-
-        Args:
-            x (array-like): Input signal array.
-            fs (int or float): Sampling frequency.
-            scaling (bool): If True, applies amplitude scaling.
-            oneside (bool): If True, returns a one-sided spectrum.
-
-        Returns:
-            tuple: A tuple containing (freq, Y, YDB)
-                - freq (np.ndarray): Frequency vector.
-                - Y (np.ndarray): Complex FFT result (scaled if requested).
-                - YDB (np.ndarray): FFT result in decibels.
-
-       
-    """
-    x = np.asarray(x)
-    N = len(x)
-
-    if oneside:
-        # Use rfft for efficiency with real signals, as it computes
-        # only the positive frequency components.
-        Y = np.fft.rfft(x)
-        freq = np.fft.rfftfreq(N, d=1 / fs)
-
-        if scaling:
-         
-            Y = Y / N
-            
-            Y[1:] *= 2
-
-            if N % 2 == 0:
-               
-                Y[-1] /= 2
-    else:
-        # For a standard two-sided spectrum
-        Y = np.fft.fft(x)
-        freq = np.fft.fftfreq(N, d=1 / fs)
-        if scaling:
-            # For a two-sided spectrum, the standard amplitude scaling is 1/N.
-            Y = Y / N
-
-    # Calculate decibels for the final spectrum.
-    # A small constant is added to avoid an error from log10(0).
-    YDB = 20 * np.log10(np.abs(Y) + 1e-9)
-
-    return freq, Y, YDB
-
 def midpoint_forward_euler(F, G, u_signal, x0, fs):
     Ts = 1 / fs
     num_steps = len(u_signal)
@@ -447,7 +396,61 @@ def midpoint_forward_euler(F, G, u_signal, x0, fs):
 
     return x_history
 
+def plot_one_sided_spectrum(x, fs, xlim=None, ylim=None, window=False):
+    """
+    Plot the one-sided magnitude spectrum with frequency in Hz.
 
+    Parameters
+    ----------
+    x : array_like
+        Time-domain signal
+    fs : float
+        Sampling frequency in Hz
+    """
+
+    x = np.asarray(x)
+    N = len(x)
+
+    # One-sided FFT
+    X = np.fft.rfft(x)
+
+    # Frequency axis in Hz (NOT sample index)
+    freqs = np.fft.rfftfreq(N, d=1.0/fs)
+
+    # Amplitude normalization
+    mag = np.abs(X) / N
+    mag[1:-1] *= 2  # keep DC and Nyquist correct
+
+    # Plot
+    plt.figure()
+    plt.semilogx(freqs, mag)
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Magnitude")
+    plt.title("One-Sided Amplitude Spectrum")
+    if xlim != None:
+        plt.xlim(xlim)
+    if ylim != None:
+        plt.ylim(ylim)    
+    plt.grid(True)
+    plt.show()
+
+def rms(x):
+    return np.sqrt(np.mean(x**2))
+
+def vel_2_spl(vel, r, f):
+    # In:
+    # Vel: Velocity signal
+    # r: radius of driver
+    # Out: Prms at 1m in dB SPL
+    rho = 1.21
+    c = 344
+    k = 2*np.pi*f/c
+    v_rms = rms(vel)
+    Sd = r**2 * np.pi
+    U = v_rms * Sd
+    p_rms = rho*c*k*U/(4*np.pi*1)
+    p_rms_dB = 20*np.log10(p_rms/(20e-6))
+    return p_rms_dB
 
 import numpy as np
 import matplotlib.pyplot as plt
