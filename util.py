@@ -396,7 +396,25 @@ def midpoint_forward_euler(F, G, u_signal, x0, fs):
 
     return x_history
 
-def plot_one_sided_spectrum(x, fs, xlim=None, ylim=None, window=False):
+def vel_2_spl(vel, r, f, log=False):
+    # In:
+    # Vel: Velocity signal
+    # r: radius of driver
+    # Out: Prms at 1m in dB SPL
+    rho = 1.21
+    c = 344
+    k = 2*np.pi*f/c
+    v_rms = vel/np.sqrt(2)
+    Sd = r**2 * np.pi
+    U = v_rms * Sd
+    p_rms = rho*c*k*U/(4*np.pi*1)
+    p_rms_dB = 20*np.log10(p_rms/(20e-6))
+    if log:
+        return p_rms_dB
+    else:
+        return p_rms
+
+def plot_spectrum_in_spl(x, fs, radius, xlim=None, ylim=None, window=False, log=False):
     """
     Plot the one-sided magnitude spectrum with frequency in Hz.
 
@@ -421,6 +439,10 @@ def plot_one_sided_spectrum(x, fs, xlim=None, ylim=None, window=False):
     mag = np.abs(X) / N
     mag[1:-1] *= 2  # keep DC and Nyquist correct
 
+    #Convert from vel to spl. Also convert from peak to rms
+    for n in range(len(mag)):
+        mag[n] = vel_2_spl(mag[n], radius, freqs[n], log=log)
+
     # Plot
     plt.figure()
     plt.semilogx(freqs, mag)
@@ -434,58 +456,180 @@ def plot_one_sided_spectrum(x, fs, xlim=None, ylim=None, window=False):
     plt.grid(True)
     plt.show()
 
-def rms(x):
-    return np.sqrt(np.mean(x**2))
+def plot_spectrum(x, fs, xlim=None, ylim=None, window=False):
+    """
+    Plot the one-sided magnitude spectrum with frequency in Hz.
 
-def vel_2_spl(vel, r, f):
-    # In:
-    # Vel: Velocity signal
-    # r: radius of driver
-    # Out: Prms at 1m in dB SPL
-    rho = 1.21
-    c = 344
-    k = 2*np.pi*f/c
-    v_rms = rms(vel)
-    Sd = r**2 * np.pi
-    U = v_rms * Sd
-    p_rms = rho*c*k*U/(4*np.pi*1)
-    p_rms_dB = 20*np.log10(p_rms/(20e-6))
-    return p_rms_dB
+    Parameters
+    ----------
+    x : array_like
+        Time-domain signal
+    fs : float
+        Sampling frequency in Hz
+    """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.io import loadmat, savemat
-from scipy.signal import welch, stft
+    x = np.asarray(x)
+    N = len(x)
 
-def magnitude_spectrum(x, sr, window_length, window="rectangular"):
-  """Compute the averaged magnitude spectrum over overlapping segments.
+    # One-sided FFT
+    X = np.fft.rfft(x)
 
-  Args:
-    x: the signal
-    sr: sample rate
-    window_length: the size of the window and the FFT
-    window: which window type to apply
-  Returns:
-    f: array of frequencies
-    A: the magnitude spectrum
-  
-  usage: f, S = magnitude_spectrum(signal, sr, window="rectangular", window_length=96000)    
+    # Frequency axis in Hz (NOT sample index)
+    freqs = np.fft.rfftfreq(N, d=1.0/fs)
 
-  """
-  # Overlapping segments, window and Fourier transform. The default option
-  # `scale="spectrum"` takes care of proper magnitude normalization.
-  f, _, S = stft(x, sr, window=window, nperseg=window_length, boundary=None)
-  # remove last window, which might not contain full period of the excitation
-  S = S[:, :-1]
-  # compute magnitude
-  S = np.abs(S)
-  # real spectrum only gives half of the amplitude
-  S *= 2
-  # average over the segments
-  S = S.mean(axis=-1)
+    # Amplitude normalization
+    mag = np.abs(X) / N
+    mag[1:-1] *= 2  # keep DC and Nyquist correct
 
-  # Alternative code that gives exactly the same output as above:
-  # f, Pxx = welch(x, sr, window=window, nperseg=window_length,
-  #                scaling='spectrum', return_onesided=True)
-  # S = np.sqrt(Pxx * 2)
-  return f, S
+    # Convert to RMS
+    mag = mag/np.sqrt(2)
+
+    # Plot
+    plt.figure()
+    plt.semilogx(freqs, mag)
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Magnitude")
+    plt.title("One-Sided Amplitude Spectrum")
+    if xlim != None:
+        plt.xlim(xlim)
+    if ylim != None:
+        plt.ylim(ylim)    
+    plt.grid(True)
+    plt.show()
+
+def thd_spl(signal, fs, radius, max_harmonic=19):
+    # 1. apply hanning window - this attenuated by 0.5 which we will fix later
+    window = np.hanning(len(signal))
+    signal_windowed = signal * window
+    
+    # 2. perform FFT on the windowed signal
+    yf = np.fft.rfft(signal_windowed)
+    
+    # 3. calculate magnitudes
+    # we normalize by the window instead of the usual N and multiply by 2 for one-sided spectrum
+    magnitudes = np.abs(yf) * 2 / np.sum(window)
+    freqs = np.fft.rfftfreq(len(signal), d=1.0/fs)
+
+    # 3.5 convert the magnitudes to SPL
+    for n in range(len(magnitudes)):
+        magnitudes[n] = vel_2_spl(magnitudes[n], radius, freqs[n], log=False)
+    
+    # 4. find the fundamental in the signal from the magnitudes, ie. not the 1st index (that would be DC) but the 2nd
+    fundamental_idx = np.argmax(magnitudes[1:]) + 1
+    fundamental_mag_peak = magnitudes[fundamental_idx]
+    
+    # 5. calculate frequency resolution
+    freq_res = fs / len(signal)
+    f1_freq = fundamental_idx * freq_res
+    
+    #print(f"Detected Fundamental: {f1_freq:.2f} Hz")
+
+    # calculate THD sums
+    sum_squares_harmonics = 0
+    sum_squares_total = fundamental_mag_peak ** 2
+    
+    # store the harmonic data
+    harmonic_data = {} 
+    
+    
+    harmonic_data[1] = fundamental_mag_peak
+
+    #go through harmonics up until max_harmonic
+    for n in range(2, max_harmonic + 1):
+        
+        expected_idx = n * fundamental_idx
+        search_range = 2 
+        
+        start = max(0, expected_idx - search_range)
+        end = min(len(magnitudes), expected_idx + search_range + 1)
+        
+        # check for valid start (less than magnitudes array)
+        if start < len(magnitudes):
+            harm_mag_peak = np.max(magnitudes[start:end])
+            
+            sq_val = harm_mag_peak ** 2
+            sum_squares_harmonics += sq_val
+            sum_squares_total += sq_val
+            
+            
+            harmonic_data[n] = harm_mag_peak
+
+    # compute THD_R 
+    numerator = np.sqrt(sum_squares_harmonics)
+    denominator = np.sqrt(sum_squares_total)
+    
+    # check for divide by zero 
+    if denominator == 0:
+        thd_r = 0
+    else:
+        thd_r = numerator / denominator
+
+    return thd_r, harmonic_data
+
+def timd_spl(signal, fs, f_mod, f_carrier, radius, n_max=3, search_window=5):
+    # window = np.hanning(len(signal)) # Maybe use windowing 
+    # window = np.blackman(len(signal))
+    # window = np.kaiser(len(signal), 0)
+    window = flattop(len(signal))
+    signal_windowed = signal * window
+    
+    yf = np.fft.rfft(signal_windowed)
+    # yf = np.fft.rfft(signal)
+    magnitudes = np.abs(yf) * 2 / np.sum(window) # len(signal) # np.sum(window)
+    freqs = np.fft.rfftfreq(len(signal), d=1.0/fs)
+
+    # 3.5 convert the magnitudes to SPL
+    for n in range(len(magnitudes)):
+        magnitudes[n] = vel_2_spl(magnitudes[n], radius, freqs[n], log=False)
+    
+    freq_res = fs / len(signal)
+    
+    #print(f"freq_res: {freq_res}")
+
+    sum_sq_numerator = 0.0   # sideband sum (n != 0 )
+    sum_sq_denominator = 0.0 # sum of everything (n = -max to +max)
+    #print(f"carrier: {f_carrier} Hz, modulator: {f_mod} Hz)")
+    for n in range(-n_max, n_max + 1):
+        # target frequency is f2 + n*f1
+        target_freq = f_carrier + (n * f_mod)
+        
+        # #don't check negative frequencies or above nyquist
+        if target_freq <= 0 or target_freq >= fs / 2:
+            continue
+            
+        # find target index for the fft bins
+        target_idx = int(round(target_freq / freq_res))
+        
+        # search range
+        start = max(0, target_idx - search_window)
+        end = min(len(magnitudes), target_idx + search_window + 1)
+        
+        # find peaks in the range
+        peak_mag = np.max(magnitudes[start:end])
+        
+        # square it
+        sq_val = peak_mag ** 2
+        
+        # and add to denominator sum
+        sum_sq_denominator += sq_val
+        
+        # add to distortion sum, but only if it is not n != 0 
+        if n != 0:
+            sum_sq_numerator += sq_val
+            # print sidebands?
+            #if peak_mag > 0.001: # filter out very low signals
+                #print(f"n={n}: peak at {target_idx*freq_res:.1f} Hz with amplitude {peak_mag:.4f}")
+        #else:
+            #print(f"carrer at n=0: peak at {target_idx*freq_res:.1f}Hz with amplitude {peak_mag:.4f}")
+
+    # numerator: sum of sidfebands
+    numerator = np.sqrt(sum_sq_numerator)
+    
+    # denominator: total sum
+    denominator = np.sqrt(sum_sq_denominator)
+    
+    if denominator == 0:
+        return 0.0
+        
+    timd = numerator / denominator
+    return timd
