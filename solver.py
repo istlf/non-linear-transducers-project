@@ -6,7 +6,7 @@ import util
 import os
 import engutil
 
-def loudspeaker_ode(t, x, u_func, params, polys):
+def loudspeaker_ode_model_B(t, x, u_func, params, polys):
     i_curr = x[0]  
     i_creep = x[1] 
     disp = x[2]    
@@ -143,4 +143,88 @@ where poly_Bl =poly_Bl = np.poly1d(Bln)
         
     return x_history
 
+def loudspeaker_ode_model_C(t, x, u_func, params, polys):
+    # unpack state vector
+    i_curr = x[0]  
+    i_creep = x[1] 
+    disp   = x[2]    
+    vel    = x[3]    
+    
+    voltage = u_func(t)
+    
+    # evaluate Bl and K_m polynomials
+    P_Bl = polys['Bl'](disp)
+    P_K  = polys['K'](disp)
+    
+    # displacement and current dependent parts of Le
+    P_Le_d = polys['Le'](disp)  
+    P_Li_i = polys['Li'](i_curr)
+    val_Le = max(P_Le_d * P_Li_i, 1e-9)
+    # partial derivs
+    grad_Le_d = polys['Le'].deriv()(disp) 
+    grad_Li_i = polys['Li'].deriv()(i_curr) # todo?
+    
+    # wrt displacement
+    dLe_dd = grad_Le_d * P_Li_i
+    
+    # wrt current
+    dLe_di = P_Le_d * grad_Li_i
+    
+    # Le*(d,i)
+    Le_star = val_Le + i_curr * dLe_di
+    
+    # Le_nom # todo ? 
+    Le_nom = polys['Le'](0) * polys['Li'](0)
+    ratio = val_Le / Le_nom
+    
+    val_R2 = params['R20'] * ratio
+    val_L2 = params['L20'] * ratio
+    
+    # L2 partial derivs
+    # L2 is scaled version of Le, therefor it's derivatives scae by the same factor
+    scale_factor = params['L20'] / Le_nom
+    dL2_dd = scale_factor * dLe_dd
+    dL2_di = scale_factor * dLe_di
 
+    # constant values
+    R_e = params['Re']
+    R_m = params['Rm']
+    M_m = params['Mm']
+    K_m = P_K 
+    Bl  = P_Bl 
+
+   
+    # eq 0
+    di_dt = (voltage - i_curr * (R_e + val_R2) + val_R2 * i_creep - vel * (Bl + dLe_dd * i_curr)) / Le_star
+
+
+    # eq 1
+    # (-L_e_star*i_2*(R_2 + dL_2/dd*v) 
+    # + dL_2/di*i_2*(-V_in + v*(Bl + dL_e/dd*i)) 
+    # + i*(L_e_star*R_2 + R_e*dL_2/di*i_2))/
+    # (L_2*L_e_star)
+
+    term1 = -Le_star * i_creep * (val_R2 + dL2_dd * vel)
+    term2 = dL2_di * i_creep * (-voltage + vel * (Bl + dLe_dd * i_curr))
+    term3 = i_curr * (Le_star * val_R2 + R_e * dL2_di * i_creep)
+    di2_dt = (term1 + term2 + term3) / (val_L2 * Le_star)
+
+    # eq 2
+    ddisp_dt = vel
+    
+    # eq 3
+    # [x] (-K_m*d
+    # [x] - R_m*v 
+    # [x] + dL_2/dd*i_2**2/2 
+    # + i*(2*Bl + dL_e/dd*i)/2) = i*2*Bl/2 + dLe_dd*i^2
+    # /M_m
+    force_electric = Bl * i_curr
+    force_reluctance = 0.5 * dLe_dd * i_curr**2
+    force_reluctance_2 = 0.5 * dL2_dd * i_creep**2 
+    force_stiffness = -K_m * disp
+    force_damping = -R_m * vel
+    
+    dvel_dt = (force_electric + force_reluctance + force_reluctance_2 + force_stiffness + force_damping) / M_m
+
+    return [di_dt, di2_dt, ddisp_dt, dvel_dt]
+    
