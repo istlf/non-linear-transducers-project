@@ -228,7 +228,7 @@ def check_stability(F, fs):
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
 
-def welchie(u, X, fs):
+def welchie(u, X, fs, numavgs=15):
     # print(data.keys())
     # fs = data['sample_rate'][0][0]
     i = X[0]
@@ -240,7 +240,7 @@ def welchie(u, X, fs):
     # print(f"len: {len(u)/fs}")
     numsamples = int(len(u))
     numsecs = len(u)/fs
-    numavgs = 15 # is really 2*numavgs
+    #numavgs = 15 # is really 2*numavgs
 
     print(f"len samples: {len(u)}")
     print(f"nperseg = {len(u)/numavgs}")
