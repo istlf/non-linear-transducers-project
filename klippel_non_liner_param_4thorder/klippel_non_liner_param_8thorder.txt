@@ -1,0 +1,52 @@
+Displacement Limits	 	 	thresholds can be changed in Processing property page
+X Bl @ Bl min=82%	>2.3	mm	Displacement limit due to force factor variation
+X C @ C min=75%	1.3	mm	Displacement limit due to compliance variation
+X L @ Z max=10 %	>2.3	mm	Displacement limit due to inductance variation
+X d @ d2=10%	24.6	mm	Displacement limit due to IM distortion (Doppler)
+			
+Asymmetry (IEC 62458)			
+Ak	85.73	%	Stiffness asymmetry Ak(Xpeak)
+Xsym	-0.08	mm	Symmetry point of Bl(x) at maximal excursion
+			
+Thermal Parameters			
+alpha		 	Heating of voice coil by eddy currents
+Rtv		K/W	thermal resistance  coil ==> pole tips
+rv		Ws/Km	air convection cooling depending on velocity
+Rtm		K/W	thermal resistance  magnet ==> environment
+tau m		min	thermal time constant of magnet
+Ctm		Ws/K	thermal capacity of the magnet
+tau v		s	thermal time constant of voice coil
+Ctv		Ws/K	thermal capacity of the voice coil
+			
+Thermal State			
+			
+Power Series			
+Bl0 = Bl (X=0)	6.4552	N/A	constant part in force factor
+Bl1	-0.010082	N/Amm	1st order coefficient in force factor expansion
+Bl2	-0.014286	N/Amm^2	2nd order coefficient in force factor expansion
+Bl3	0.0010369	N/Amm^3	3rd order coefficient in force factor expansion
+Bl4	-0.0020183	N/Amm^4	4th order coefficient in force factor expansion
+			
+L0 = Le (X=0)	0.47367	mH	constant part in inductance
+L1	-0.024457	mH/mm	1st order coefficient in inductance expansion
+L2	0.0025517	mH/mm^2	2nd order coefficient in inductance expansion
+L3	0.00034538	mH/mm^3	3rd order coefficient in inductance expansion
+L4	-3.5972e-005	mH/mm^4	4th order coefficient in inductance expansion
+			
+C0 = Cms (X=0)	1.4235	mm/N	constant part in compliance
+C1	0.23642	1/N	1st order coefficient in compliance expansion
+C2	-0.028294	1/Nmm	2nd order coefficient in compliance expansion
+C3	-0.0054250	1/Nmm^2	3rd order coefficient in compliance expansion
+C4	0.00082347	1/Nmm^3	4th order coefficient in compliance expansion
+			
+K1	-0.11807	N/mm^2	1st order coefficient in stiffness expansion
+K2	0.034595	N/mm^3	2nd order coefficient in stiffness expansion
+K3	-0.0045723	N/mm^4	3rd order coefficient in stiffness expansion
+K4	0.00019645	N/mm^5	4th order coefficient in stiffness expansion
+			
+f1	-0.003748	1/A	coefficient (1) of L(I) Inductance over current (flux modulation)
+f2	-0.001158	1/A^2	coefficient (2) of L(I) Inductance over current (flux modulation)
+			
+Xpse	 2.7	mm	-Xpse < X < Xpse, range where power series is fitted
+			 Parameters for Auralization available.
+
