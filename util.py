@@ -417,7 +417,7 @@ def vel_2_spl(vel, r, f, log=False):
     else:
         return p_rms
 
-def plot_spectrum_in_spl(x, fs, radius, xlim=None, ylim=None, window=False, log=False):
+def plot_spectrum_in_spl(x, fs, radius, xlim=None, ylim=None, window=False, log=False, title="Spectrum in SPL RMS", ylabel="Magnitude / Pa", xlabel="Frequency / Hz", save=None):
     """
     Plot the one-sided magnitude spectrum with frequency in Hz.
 
@@ -447,19 +447,22 @@ def plot_spectrum_in_spl(x, fs, radius, xlim=None, ylim=None, window=False, log=
         mag[n] = vel_2_spl(mag[n], radius, freqs[n], log=log)
 
     # Plot
-    plt.figure()
+    init_latex()
+    plt.figure(figsize=(12,6))
     plt.semilogx(freqs, mag)
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel("Magnitude")
-    plt.title("One-Sided Amplitude Spectrum")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     if xlim != None:
         plt.xlim(xlim)
     if ylim != None:
         plt.ylim(ylim)    
     plt.grid(True)
+    if save is not None:
+        plt.savefig(save, bbox_inches="tight")
     plt.show()
 
-def plot_spectrum(x, fs, xlim=None, ylim=None, window=False):
+def plot_spectrum(x, fs, xlim=None, ylim=None, window=False, title="Spectrum", ylabel="Magnitude", xlabel="Frequency / Hz", save=None):
     """
     Plot the one-sided magnitude spectrum with frequency in Hz.
 
@@ -488,16 +491,19 @@ def plot_spectrum(x, fs, xlim=None, ylim=None, window=False):
     mag = mag/np.sqrt(2)
 
     # Plot
-    plt.figure()
+    init_latex()
+    plt.figure(figsize=(12,6))
     plt.semilogx(freqs, mag)
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel("Magnitude")
-    plt.title("One-Sided Amplitude Spectrum")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     if xlim != None:
         plt.xlim(xlim)
     if ylim != None:
         plt.ylim(ylim)    
     plt.grid(True)
+    if save is not None:
+        plt.savefig(save, bbox_inches="tight")
     plt.show()
 
 def thd_spl(signal, fs, radius, max_harmonic=19):
@@ -644,31 +650,4 @@ def find_fundemental_pRMS(v, fs, freq, radius):
     Prms_sim = vel_2_spl(fundemental_peak, radius, freq)
     return Prms_sim
 
-def find_input_uRMS(polys, params, x0, fs, t_eval, freq, Vrms_meas, Prms_meas, radius):
-    Vrms = Vrms_meas
-    duration = 5.0
-
-    t_eval = np.linspace(0, duration, int(fs*duration))
-    u = np.sqrt(2)*Vrms*np.sin(2 * np.pi * freq * t_eval)
-    u_func = interp1d(t_eval, u, kind='linear', fill_value="extrapolate")
-    
-    sol = solve_ivp(
-    fun=solver.loudspeaker_ode,
-    t_span=(0, duration),
-    y0=x0,
-    t_eval=t_eval,      
-    args=(u_func, params, polys), 
-    method='RK45',      
-    rtol=1e-3,       # 1e-3   (was 5)
-    atol=1e-6        # 1e-6 ( was 8)
-    )
-
-    sim_data = np.vstack((sol.t, u, sol.y))
-    v_sim = sim_data[5]
-    Prms_sim = find_fundemental_pRMS(v_sim, fs, freq, radius)
-
-    Prms_error = Prms_meas - Prms_sim
-
-    return Prms_sim
-    
 
