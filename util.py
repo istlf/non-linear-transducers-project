@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import scipy as sp
 import numpy as np 
 import engutil
+import solver
+from scipy.interpolate import interp1d
+from scipy.integrate import solve_ivp
 
 
 def load_wav(file, normalize=False):
@@ -633,3 +636,39 @@ def timd_spl(signal, fs, f_mod, f_carrier, radius, n_max=3, search_window=5):
         
     timd = numerator / denominator
     return timd
+
+def find_fundemental_pRMS(v, fs, freq, radius):
+    yf = np.fft.rfft(v)
+    magnitudes = np.abs(yf) * 2 / len(v)
+    fundemental_peak = magnitudes[int(freq / (fs/len(v)))]
+    Prms_sim = vel_2_spl(fundemental_peak, radius, freq)
+    return Prms_sim
+
+def find_input_uRMS(polys, params, x0, fs, t_eval, freq, Vrms_meas, Prms_meas, radius):
+    Vrms = Vrms_meas
+    duration = 5.0
+
+    t_eval = np.linspace(0, duration, int(fs*duration))
+    u = np.sqrt(2)*Vrms*np.sin(2 * np.pi * freq * t_eval)
+    u_func = interp1d(t_eval, u, kind='linear', fill_value="extrapolate")
+    
+    sol = solve_ivp(
+    fun=solver.loudspeaker_ode,
+    t_span=(0, duration),
+    y0=x0,
+    t_eval=t_eval,      
+    args=(u_func, params, polys), 
+    method='RK45',      
+    rtol=1e-3,       # 1e-3   (was 5)
+    atol=1e-6        # 1e-6 ( was 8)
+    )
+
+    sim_data = np.vstack((sol.t, u, sol.y))
+    v_sim = sim_data[5]
+    Prms_sim = find_fundemental_pRMS(v_sim, fs, freq, radius)
+
+    Prms_error = Prms_meas - Prms_sim
+
+    return Prms_sim
+    
+
