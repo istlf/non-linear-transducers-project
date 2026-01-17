@@ -9,7 +9,8 @@ import engutil
 import solver
 from scipy.interpolate import interp1d
 from scipy.integrate import solve_ivp
-
+import json
+import pandas as pd 
 
 def load_wav(file, normalize=False):
     """
@@ -211,6 +212,37 @@ def generate_pink_noise(N, fs, fmin=1.0, fmax=None, level=0.1, kind='rms'):
     else:
         raise ValueError("kind must be 'rms' or 'db'")
 
+def generate_excitation_signal(duration, fs, signal_type, level_rms, freqs=None):
+    n_samples = int(fs * duration)
+    t = np.linspace(0, duration, n_samples)
+    
+    if signal_type == "pink_noise":
+        fmin = freqs[0] if (freqs and isinstance(freqs, list)) else 1
+        u = generate_pink_noise(len(t), fs, fmin=fmin, level=level_rms)
+        fmax = fs//2
+        
+    elif signal_type == "sine" or signal_type == "multitone":
+        if np.isscalar(freqs):
+            freqs = [freqs]
+        
+        if np.isscalar(level_rms):
+            levels = [level_rms] * len(freqs)
+        else:
+            levels = level_rms
+            
+        u = np.zeros_like(t)
+        for f, rms in zip(freqs, levels):
+            peak = rms * np.sqrt(2)
+            u += peak * np.sin(2 * np.pi * f * t)
+        fmin = freqs[0]
+        fmax = freqs[-1]    
+    else:
+        raise ValueError(f"Unknown signal type: {signal_type}")
+    
+    
+    return t, u, level_rms, level_rms*np.sqrt(2), signal_type, fmin, fmax
+
+
 def calculate_min_fs(F):
     eigenvalues, _ = np.linalg.eig(F)
 
@@ -247,6 +279,62 @@ def check_stability(F, fs):
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
 
+def create_nonlinear_F_matrix(params):
+    R_e  = params['Re']
+    R_20 = params['R20']
+    L_e0  = params['Le_nom'] 
+    L_20 = params['L20']
+    Bl  = params['Bl_nom'] 
+    M_m  = params['Mm']
+    K_m  = params['Km_nom']
+    R_m  = params['Rm']
+
+    F = np.array([
+    [-(R_e + R_20)/L_e0,  R_20/L_e0,    0.0,         -Bl/L_e0],
+    [R_20/L_20,          -R_20/L_20,    0.0,          0.0 ],
+    [0.0,                   0.0,            0.0,          1.0],
+    [Bl/M_m,                0.0,           -K_m/M_m,   -R_m/M_m]])
+
+    return F
+
+def load_simulation_results(filename):
+    """
+    Parses a simulation CSV file into a Metadata dict and a Pandas DataFrame.
+    """
+    metadata = {}
+    
+    # 1. Parse the Header to get Metadata and Column Names
+    with open(filename, 'r') as f:
+        for line in f:
+            if line.startswith('#'):
+                content = line.strip('# \n')
+                if ':' in content:
+                    key, value = content.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    
+                    if key == 'Columns':
+                        # Save column names as a list
+                        metadata[key] = [x.strip() for x in value.split(',')]
+                    else:
+                        # Try converting to number, otherwise keep as string
+                        try:
+                            if '.' in value:
+                                metadata[key] = float(value)
+                            else:
+                                metadata[key] = int(value)
+                        except ValueError:
+                            metadata[key] = value
+            else:
+                break
+    
+    # 2. Load Data into Pandas
+    # comment='#' tells pandas to skip the metadata lines
+    # header=None tells pandas the file has no header row (since we parsed it manually)
+    # names=metadata['Columns'] applies the column names we found
+    df = pd.read_csv(filename, comment='#', header=None, names=metadata.get('Columns'))
+    
+    return metadata, df
 
 def load_speaker_parameters(json_file_path, dataset_name="3Vrms"):
     """
@@ -274,9 +362,9 @@ def load_speaker_parameters(json_file_path, dataset_name="3Vrms"):
     
     # 2. polynomial dicts
     polys = {
-        'Bl': np.poly1d(coeffs['Bl']),
-        'K':  np.poly1d(coeffs['K']),
-        'Le': np.poly1d(coeffs['Le']),
+        'Bl': np.poly1d(coeffs['Bln']),
+        'K':  np.poly1d(coeffs['Kn']),
+        'Le': np.poly1d(coeffs['Ln']),
         'Li': np.poly1d(coeffs['Li'])
     }
     
@@ -307,7 +395,7 @@ def welchie(u, X, fs, numavgs=15):
     #nfft = 2**17
 
     # print(f"Num avg: {2*numsamples/nperseg}")
-    # print(f"freq res: {fs/nperseg}")
+    print(f"freq res: {fs/nperseg}")
     
     f, S_uu = sp.signal.welch(u, fs, window, nperseg, noverlap) # , nfft=nfft)
     f, S_iu = sp.signal.csd(u, i, fs, window, nperseg, noverlap)
@@ -322,75 +410,7 @@ def welchie(u, X, fs, numavgs=15):
 
     return G_iu, G_du, G_vu, f
 
-def solve_forward_euler(F, G, u_signal, x0, fs):
-    """
-    Simulates a state-space system using Forward Euler.
-    
-    Parameters:
-    F, G: System matrices
-    u_signal: Array of inputs over time
-    x0: Initial state vector
-    fs: Sampling frequency
-    """
-    Ts = 1 / fs
-    num_steps = len(u_signal)
-    
-    # 1. Initialize History Arrays
-    # We need to store the state at every time step to plot it later.
-    # Shape: (Number of Time Steps, Number of States)
-    num_states = len(x0)
-    x_history = np.zeros((num_steps, num_states))
-    
-    # Set current state to initial state
-    x_curr = x0.copy()
-    
-    #print(f"Simulating {num_steps} steps with Ts={Ts:.10f}s...")
 
-    # 2. The Simulation Loop
-    for n in range(num_steps):
-        # Store current state
-        x_history[n] = x_curr
-        
-        # Get current input (handle scalar or vector inputs)
-        u_curr = u_signal[n]
-        
-        # --- THE FORMULA FROM YOUR IMAGE ---
-        # Calculate the derivative (slope)
-        # dx/dt = F*x + G*u
-        dx = (F @ x_curr) + (G * u_curr)
-        
-        # Euler Step: New = Old + (Slope * StepSize)
-        x_next = x_curr + (dx * Ts)
-        # -----------------------------------
-        
-        # Update for next iteration
-        x_curr = x_next
-        
-    return x_history
-
-def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
-    Ts = 1/fs
-    num_states = len(x0)
-    I = np.eye(num_states)
-    
-    # Pre-compute Discrete Matrices
-    Phi = I + (F * Ts)
-    Gamma = G * Ts
-    
-    # Initialize
-    x_history = np.zeros((len(u_signal), num_states))
-    x_curr = x0.copy()
-    
-    # Faster Loop
-    for n in range(len(u_signal)):
-        x_history[n] = x_curr
-        
-        # Single matrix multiply + add
-        x_next = (Phi @ x_curr) + (Gamma * u_signal[n])
-        
-        x_curr = x_next
-        
-    return x_history
 
 def init_latex():
     plt.rcParams.update({

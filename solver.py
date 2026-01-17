@@ -6,6 +6,56 @@ import util
 import os
 import engutil
 
+
+
+def solve_forward_euler(F, G, u_signal, x0, fs):
+    Ts = 1 / fs
+    num_steps = len(u_signal)
+    num_states = len(x0)
+    x_history = np.zeros((num_steps, num_states))
+    
+    x_curr = x0.copy()
+    
+    for n in range(num_steps):
+        # save current step
+        x_history[n] = x_curr
+
+        # get new input value
+        u_curr = u_signal[n]
+        dx = (F @ x_curr) + (G * u_curr)
+        
+        # new = old + (slope*stepsize)
+        x_next = x_curr + (dx * Ts)
+        # update next iteration
+        x_curr = x_next
+        
+    return x_history
+    
+
+def solve_forward_euler_optimized(F, G, u_signal, x0, fs):
+    Ts = 1/fs
+    num_states = len(x0)
+    I = np.eye(num_states)
+    
+    # pre compute matrices
+    Phi = I + (F * Ts)
+    Gamma = G * Ts
+    
+    # init
+    x_history = np.zeros((len(u_signal), num_states))
+    x_curr = x0.copy()
+    
+    for n in range(len(u_signal)):
+        x_history[n] = x_curr
+        
+        # matrix multi + add
+        x_next = (Phi @ x_curr) + (Gamma * u_signal[n])
+        
+        x_curr = x_next
+        
+    return x_history
+
+
 def loudspeaker_ode_model_B(t, x, u_func, params, polys):
     i_curr = x[0]  
     i_creep = x[1] 
