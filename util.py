@@ -174,23 +174,42 @@ def generate_timd_signal(f_carrier=10000, f_mod=500):
     signal = carrier + sb_lower + sb_upper + sb_lower_2 + sb_upper_2
     
     return fs, signal
+import numpy as np
 
-def generate_pink_noise(N, fs, fmin=1.0, fmax=None):
+def generate_pink_noise(N, fs, fmin=1.0, fmax=None, level=0.1, kind='rms'):
+    """
+    level: The desired output level.
+    kind:  'rms' (linear rms amplitude) or 'db' (dB relative to full scale)
+    """
     if fmax is None:
         fmax = fs / 2
 
+    # Generate the noise
     X = np.fft.rfft(np.random.randn(N))
     freqs = np.fft.rfftfreq(N, d=1/fs)
 
-    # avoid DC + apply band limits
-    freqs[0] = fmin
+    # 1/f filter (Pink Noise)
+    # Avoid divide by zero at DC, apply band limits
     mask = (freqs >= fmin) & (freqs <= fmax)
-
     X[mask] /= np.sqrt(freqs[mask])
     X[~mask] = 0.0
 
     x = np.fft.irfft(X, n=N)
-    return x / np.std(x)
+
+    # 1. Normalize to Unit RMS (Standard Deviation)
+    # Since mean is approx 0, std == rms
+    x_unit = x / np.std(x)
+    
+    # 2. Apply Target Level
+    if kind == 'rms':
+        return x_unit * level
+    elif kind == 'db':
+        # Convert dBFS to linear gain
+        # 10^(-db/20)
+        linear_gain = 10 ** (level / 20)
+        return x_unit * linear_gain
+    else:
+        raise ValueError("kind must be 'rms' or 'db'")
 
 def calculate_min_fs(F):
     eigenvalues, _ = np.linalg.eig(F)
@@ -227,6 +246,41 @@ def check_stability(F, fs):
     is_stable = max_abs <= 1.0
     print(f"checking fs={fs:.1f} Hz => max eigenvalue magnitude: {max_abs:.4f}")
     return is_stable
+
+
+def load_speaker_parameters(json_file_path, dataset_name="3Vrms"):
+    """
+    loads params from a .json file containing constants and polynomial coefficients
+    """
+    with open(json_file_path, 'r') as f:
+        file_data = json.load(f)
+    
+    data = file_data['datasets'][dataset_name]
+    
+    consts = data['constants']
+    coeffs = data['polynomial_coeffs']
+    
+    # 1. params dict
+    params = {
+        'Re':     consts['Re'],
+        'Rm':     consts['Rm'], 
+        'Mm':     consts['Mm'], 
+        'R20':    consts['R20'], 
+        'L20':    consts['L20'], 
+        'Le_nom': consts['Le0'],
+        'Bl_nom': consts['Bl'],
+        'Km_nom': consts['Km']
+    }
+    
+    # 2. polynomial dicts
+    polys = {
+        'Bl': np.poly1d(coeffs['Bl']),
+        'K':  np.poly1d(coeffs['K']),
+        'Le': np.poly1d(coeffs['Le']),
+        'Li': np.poly1d(coeffs['Li'])
+    }
+    
+    return params, polys
 
 def welchie(u, X, fs, numavgs=15):
     # print(data.keys())
