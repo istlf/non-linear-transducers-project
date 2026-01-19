@@ -18,7 +18,9 @@ fs? kun 6kHz
 ## presentation
 - units for compraison klippel (velociity comparison)
 - push pink noise level 
-- phase shift in 
+- phase shift in timedomain
+- only steady parts in spectrum plots
+
 
 
 
