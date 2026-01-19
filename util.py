@@ -157,19 +157,18 @@ def timd(signal, fs, f_mod, f_carrier, n_max=3, search_window=5):
     timd = numerator / denominator
     return timd
 
-def generate_timd_signal(f_carrier=10000, f_mod=500):
-    fs = 48000 # 2*96000
-    duration = 1
-    t = np.linspace(0, duration, int(fs * duration))
+def generate_timd_signal(f_carrier=10000, f_mod=500, amplitudes=[0.8, 0.1, 0.05],fs=48000, duration=1):
+    t = np.linspace(0, duration, int(fs * duration), endpoint=False)
+    
     print(len(t))
 
-    carrier = 0.8 * np.sin(2 * np.pi * f_carrier * t)
+    carrier = amplitudes[0] * np.sin(2 * np.pi * f_carrier * t)
 
-    sb_lower = 0.1 * np.sin(2 * np.pi * (f_carrier - f_mod) * t)
-    sb_upper = 0.1 * np.sin(2 * np.pi * (f_carrier + f_mod) * t)
+    sb_lower = amplitudes[1] * np.sin(2 * np.pi * (f_carrier - f_mod) * t)
+    sb_upper = amplitudes[1] * np.sin(2 * np.pi * (f_carrier + f_mod) * t)
     
-    sb_lower_2 = 0.05 * np.sin(2 * np.pi * (f_carrier - 2 * f_mod) * t)
-    sb_upper_2 = 0.05 * np.sin(2 * np.pi * (f_carrier + 2 * f_mod) * t)
+    sb_lower_2 = amplitudes[2] * np.sin(2 * np.pi * (f_carrier - 2 * f_mod) * t)
+    sb_upper_2 = amplitudes[2] * np.sin(2 * np.pi * (f_carrier + 2 * f_mod) * t)
     
     # sum carrier and sidebands
     signal = carrier + sb_lower + sb_upper + sb_lower_2 + sb_upper_2
@@ -536,7 +535,7 @@ def plot_spectrum_in_spl(x, fs, radius, xlim=None, ylim=None, window=False, log=
         plt.savefig(save, bbox_inches="tight")
     plt.show()
 
-def plot_spectrum(x, fs, xlim=None, ylim=None, window=False, title="Spectrum", ylabel="Magnitude", xlabel="Frequency / Hz", save=None):
+def plot_spectrum(x, fs, xlim=None, ylim=None, window=False, title="Spectrum", ylabel="Magnitude", xlabel="Frequency / Hz", rms=True, save=None):
     """
     Plot the one-sided magnitude spectrum with frequency in Hz.
 
@@ -562,8 +561,9 @@ def plot_spectrum(x, fs, xlim=None, ylim=None, window=False, title="Spectrum", y
     mag[1:-1] *= 2  # keep DC and Nyquist correct
 
     # Convert to RMS
-    mag = mag/np.sqrt(2)
-
+    if rms is True:
+        mag = mag/np.sqrt(2)
+    
     # Plot
     init_latex()
     plt.figure(figsize=(12,6))
