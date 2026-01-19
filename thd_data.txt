@@ -1,0 +1,10 @@
+fs_sim: 96000
+Model: B
+test frequencies (Hz): [20 40 80]
+test amplitudes (Vrms): [0.15 1.2  2.4  5.  ]
+THD Measured 20Hz: [0.09196312 0.18864123 0.31842812 0.69473961]
+Fundemental Prms Measured 20Hz: [0.00217786 0.0197116  0.04002166 0.06973148]
+THD Measured 40Hz: [0.03197078 0.04836237 0.0897285  0.14539347]
+Fundemental Prms Measured 40Hz: [0.00563157 0.04571159 0.091691   0.19187759]
+THD Measured 80Hz: [0.01374396 0.00964242 0.01022017 0.01791029]
+Fundemental Prms Measured 80Hz: [0.01024071 0.07993942 0.1579936  0.32432385]

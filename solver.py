@@ -228,3 +228,140 @@ def loudspeaker_ode_model_C(t, x, u_func, params, polys):
 
     return [di_dt, di2_dt, ddisp_dt, dvel_dt]
     
+def midpoint_forward_euler(F, G, u_signal, x0, fs):
+    Ts = 1 / fs
+    num_steps = len(u_signal)
+    
+    # 1. Initialize History Arrays
+    # We need to store the state at every time step to plot it later.
+    # Shape: (Number of Time Steps, Number of States)
+    num_states = len(x0)
+    x_history = np.zeros((num_steps, num_states))
+    
+    # Set current state to initial state
+    x_curr = x0.copy()
+
+    for n in range(num_steps):
+        x_history[n] = x_curr
+        u_curr = u_signal[n]
+
+        # Calculate slope at start point to find midpoint
+        dx1 = (F @ x_curr) + (G * u_curr)
+        x_mid = x_curr + 0.5 * Ts * dx1
+
+        # Signal at midpoint
+        # Right now it uses signal at starting point. Not the best solution u_mid = 0.5 * (u_signal[n] + u_signal[n+1]) solution imporves accuracy but i get out of bounds for the last sample...
+        
+        # u_mid = 0.5 * (u_signal[n] + u_signal[n+1])
+        u_mid = u_curr
+        
+        # Slope at midpoint
+        dx2 = (F @ x_mid) + (G * u_mid)
+
+        x_next = x_curr + Ts * dx2
+
+        x_curr = x_next
+
+    return x_history
+
+def solve_forward_euler(F, G, u_signal, x0, fs):
+    """
+    Simulates a state-space system using Forward Euler.
+    
+    Parameters:
+    F, G: System matrices
+    u_signal: Array of inputs over time
+    x0: Initial state vector
+    fs: Sampling frequency
+    """
+    Ts = 1 / fs
+    num_steps = len(u_signal)
+    
+    # 1. Initialize History Arrays
+    # We need to store the state at every time step to plot it later.
+    # Shape: (Number of Time Steps, Number of States)
+    num_states = len(x0)
+    x_history = np.zeros((num_steps, num_states))
+    
+    # Set current state to initial state
+    x_curr = x0.copy()
+    
+    #print(f"Simulating {num_steps} steps with Ts={Ts:.10f}s...")
+
+    # 2. The Simulation Loop
+    for n in range(num_steps):
+        # Store current state
+        x_history[n] = x_curr
+        
+        # Get current input (handle scalar or vector inputs)
+        u_curr = u_signal[n]
+        
+        # --- THE FORMULA FROM YOUR IMAGE ---
+        # Calculate the derivative (slope)
+        # dx/dt = F*x + G*u
+        dx = (F @ x_curr) + (G * u_curr)
+        
+        # Euler Step: New = Old + (Slope * StepSize)
+        x_next = x_curr + (dx * Ts)
+        # -----------------------------------
+        
+        # Update for next iteration
+        x_curr = x_next
+        
+    return x_history
+
+def loudspeaker_ode_model_A(t, x, u_func, params):
+    i_curr = x[0]
+    disp = x[1]    
+    vel = x[2]    
+    
+    voltage = u_func(t) # input voltage
+
+    di_dt = - params['Re'] / params['Le'] * i_curr - params['Bl']/params['Le'] * vel + voltage/params['Le']
+    ddisp_dt = vel
+    dvel_dt = params['Bl']/params['Mm'] * i_curr - params['Km']/params['Mm'] * disp - params['Rm']/params['Mm'] * vel
+    
+    return [di_dt, ddisp_dt, dvel_dt]
+
+def simulate_thd_prms(freq, Vrms, duration, fs, model, x0, params, polys, radius):
+    
+    t_eval = np.linspace(0, duration, int(fs*duration))
+
+    u = np.sqrt(2)*Vrms*np.sin(2 * np.pi * freq * t_eval)
+
+    # u(t) function - ie to be able to find values between sample values.. 
+    u_func = interp1d(t_eval, u, kind='linear', fill_value="extrapolate")
+    # u_func = interp1d(t_eval, u, kind='cubic', fill_value="extrapolate")
+
+    if model == "B":
+        sol = solve_ivp(
+        fun=loudspeaker_ode_model_B,
+        t_span=(0, duration),
+        y0=x0,
+        t_eval=t_eval,      
+        args=(u_func, params, polys), 
+        method='RK45',      
+        rtol=1e-3,       # 1e-3   (was 5)
+        atol=1e-6        # 1e-6 ( was 8)
+        )
+    elif model == "C":
+        sol = solve_ivp(
+        fun=loudspeaker_ode_model_C,
+        t_span=(0, duration),
+        y0=x0,
+        t_eval=t_eval,      
+        args=(u_func, params, polys), 
+        method='RK45',      
+        rtol=1e-3,       # 1e-3   (was 5)
+        atol=1e-6        # 1e-6 ( was 8)
+        )
+
+    sim_data = np.vstack((sol.t, u, sol.y))
+
+    t_sim = sim_data[0]
+    v_sim = sim_data[5]
+
+    THD_sim, THD_data_sim = util.thd_spl(v_sim, fs, radius)
+    Prms_sim = util.find_fundemental_pRMS(v_sim, fs, freq, radius)
+
+    return THD_sim, Prms_sim
